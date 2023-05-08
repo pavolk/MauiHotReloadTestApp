@@ -1,67 +1,65 @@
 ﻿
 
 using CommunityToolkit.Maui.Markup;
-using CommunityToolkit.Mvvm.ComponentModel;
-using System.Collections.ObjectModel;
-using System.Diagnostics;
-using System.Runtime.CompilerServices;
 using static CommunityToolkit.Maui.Markup.GridRowsColumns;
 
 
 
 namespace FirstMarkupApp
 {
-
-    public partial class MainViewModel : ObservableObject
-    {
-        [ObservableProperty]
-        private string name;
-
-
-    }
-
     public class MainPageMarkup : ContentPage
     {
-        private readonly MainViewModel ViewModel = new();
-
-        private enum Row { TextEntry, ListView }
-        private enum Column { Description, Input }
-
-
-
+        private enum Row { MerchantCategorySelection, ListView }
 
         private enum CellColumn { Image, ArticleDetails, Amount }
 
-        private enum ArticleDetailsRow { Header, Center, Footer }
+        private enum CellRow { Header, Center, Footer }
 
 
         public class Article { 
 
-            public string OrderNumber { get; set; }
+            public string? OrderNumber { get; set; }
 
-            public string Name { get; set; }
+            public string? Name { get; set; }
+
             public double PriceEuros { get; set; }
-            public string PackagintUnits { get; set; }
+            
+            public string? PackagintUnits { get; set; }
 
         }
 
-        public class Position {
+        public class ListPosition {
 
             public int Ordinal { get; set; }
 
-            public Article Article { get; set; }
+            public Article? Article { get; set; }
 
             public double Amount { get; set; }
 
-
         }
 
-        public ObservableCollection<Position> Items { get; set; } = new ObservableCollection<Position>();
+        public IList<string> Merchants { get; set; } = new List<string>();
+
+        public IList<string> Categories { get; set; } = new List<string>();
+
+        public IList<ListPosition> Items { get; set; } = new List<ListPosition>();
 
         public MainPageMarkup()
         {
+            Merchants.Add("EDEKA");
+            Merchants.Add("Metro");
+            Merchants.Add("Merchant 3");
+            Merchants.Add("Merchant 4");
+            Merchants.Add("Merchant 5");
+
+            Categories.Add("Backwaren");
+            Categories.Add("Milchprodukte");
+            Categories.Add("Category 3");
+            Categories.Add("Category 4");
+            Categories.Add("Category 5");
+
             Items.Add(
-                new Position() { 
+                new ListPosition() { 
                             Ordinal = 1, 
                             Article = new Article() { 
                                 OrderNumber = "1234567890",
@@ -72,7 +70,7 @@ namespace FirstMarkupApp
                             Amount = 10
                      });
             Items.Add(
-                new Position() { 
+                new ListPosition() { 
                             Ordinal = 2, 
                             Article = new Article() { 
                                 OrderNumber = "1234567890",
@@ -83,139 +81,167 @@ namespace FirstMarkupApp
                             Amount = 2
                     });
             Items.Add(
-                    new Position() { 
-                            Ordinal = 3, 
-                            Article = new Article() { 
-                                OrderNumber = "1234567890",
-                                Name = "Butter", 
-                                PriceEuros = 2.49,
-                                PackagintUnits = "1 Piece, 250g"
-                            },
-                            Amount = 3
+                new ListPosition() {
+                        Ordinal = 3,
+                        Article = new Article() {
+                            OrderNumber = "1234567890",
+                            Name = "Butter",
+                            PriceEuros = 2.49,
+                            PackagintUnits = "1 Piece, 250g"
+                        },
+                        Amount = 3
                     });
+            Items.Add(
+                new ListPosition() {
+                    Ordinal = 4,
+                    Article = new Article() {
+                        OrderNumber = "1234567890",
+                        Name = "Butter",
+                        PriceEuros = 2.49,
+                        PackagintUnits = "1 Piece, 250g"
+                    },
+                    Amount = 0
+                })
+            ;
 
         }
 
+        class ListPositionDataTemplate : DataTemplate {
+
+            public ListPositionDataTemplate() : base(() => Build()) { }
+
+            static View Build() =>
+                new Grid {
+                    ColumnSpacing = 10,
+
+                    ColumnDefinitions = Columns.Define(
+                        (CellColumn.Image, Auto),
+                        (CellColumn.ArticleDetails, Star),
+                        (CellColumn.Amount, Auto)
+                    ),
+
+                    RowDefinitions = Rows.Define(
+                        (CellRow.Header, Auto),
+                        (CellRow.Center, Star),
+                        (CellRow.Footer, Auto)
+                    ),
+
+                    Children = {
+                            // Image
+                            new BoxView()
+                                .Column(CellColumn.Image)
+                                .RowSpan(3)
+                                .BackgroundColor(Colors.Yellow)
+                                .Center()
+                                .Size(50)
+                            ,
+
+                            // Header
+                            new Label()
+                                .Column(CellColumn.ArticleDetails)
+                                .Row(CellRow.Header)
+                                .Bind(Label.TextProperty,
+                                    binding1: new Binding(nameof(ListPosition.Ordinal)),
+                                    binding2: new Binding(nameof(ListPosition.Article)),
+                                    convert: ((int o, Article a) values) => {
+                                        if (values.o == 0 || values.a == null) {
+                                            return string.Empty;
+                                        }
+                                        return string.Join(" | ", new string[] { values.o.ToString(), values.a.OrderNumber });
+                                        }
+                                )
+                                .Font(bold : false, size : 10)
+                            ,
+
+                            // Article Name
+                            new Label()
+                                .Column (CellColumn.ArticleDetails)
+                                .Row(CellRow.Center)
+                                .Bind(Label.TextProperty,
+                                    static(ListPosition p) => p.Article.Name,
+                                    convert: (string? text) => text?.ToUpperInvariant() ?? "")
+                                .Font(bold: true, size: 16)
+                            ,
+
+                            // Footer
+                            new Label()
+                                .Column(CellColumn.ArticleDetails)
+                                .Row(CellRow.Footer)
+                                .Bind(Label.TextProperty, static(ListPosition p) => p.Article.PackagintUnits)
+                                .Font(bold : false, size : 10)
+                                .Start()
+                            ,
+
+                            new Label()
+                                .Column(CellColumn.Amount)
+                                .Row(CellRow.Footer)
+                                .Bind(Label.TextProperty, static(ListPosition p) => p.Article.PriceEuros)
+                                .Font(bold : false, size : 10)
+                                .Center()
+                            ,
+
+                            // ShoppingList/Order/ShoppingCart "Amount" button
+                            new Button()
+                                .Column(CellColumn.Amount)
+                                .Row(CellRow.Header).RowSpan(2)
+                                .Bind(IsVisibleProperty, 
+                                    static (ListPosition p) => p.Amount,
+                                    convert: (double value) => value > 0.0)
+                                .Bind(Button.TextProperty, nameof(ListPosition.Amount))
+                                .BackgroundColor(Colors.LightGray)
+                                .Center()
+                            ,
+
+                        }
+                }.Padding(0, 10);
+
+        };
+
+        class ListPositionCellView : ViewCell {
+
+            public ListPositionCellView()
+            {
+                View = new VerticalStackLayout() { 
+                    Children = { new Label().Text("Some text") } 
+                };
+            }
+
+            protected override void OnBindingContextChanged()
+            {
+                base.OnBindingContextChanged();
+
+                if (BindingContext != null) {
+                    ;
+                }
+            }
+
+        }
 
         void Build() => Content = new Grid {
 
                 RowDefinitions = Rows.Define(
-                    (Row.TextEntry, 36),
+                    (Row.MerchantCategorySelection, Auto),
                     (Row.ListView, Stars(1))
-                ),
-
-                ColumnDefinitions = Columns.Define(
-                    (Column.Description, Star),
-                    (Column.Input, Stars(2))
                 ),
 
                 Children =
                 {
-                    new Label()
-                        .Row(Row.TextEntry)
-                        .Column(Column.Description)
-                        .Text("Customer Name:")
-                        .CenterVertical(),
-
-
-                    new Entry()
-                        .Row(Row.TextEntry)
-                        .Column(Column.Input)
-                        .Placeholder("Enter name")
-                        .FontSize(15)
-                        .TextColor(Colors.Black)
-                        .Bind(Entry.TextProperty, "Name", BindingMode.TwoWay),
+                    new VerticalStackLayout() {
+                        Children = {
+                            new Picker() {
+                                ItemsSource = (System.Collections.IList)Merchants
+                            },
+                            new Picker() {
+                                ItemsSource = (System.Collections.IList)Categories
+                            }
+                        }
+                    }.Row(Row.MerchantCategorySelection),
 
                     new CollectionView()
                         .Row(Row.ListView)
-                        .Column(0).ColumnSpan(2)
                         .ItemsSource(Items)
-                        .ItemTemplate(new DataTemplate(() =>
-                                new Grid {
-
-                                    ColumnSpacing = 10,
-
-                                    ColumnDefinitions = Columns.Define(
-                                        (CellColumn.Image, Auto),
-                                        (CellColumn.ArticleDetails, Star),
-                                        (CellColumn.Amount, Auto)
-                                    ),
-
-                                    Children = {
-                                        new BoxView()
-                                            .Column(CellColumn.Image)
-                                            .BackgroundColor(Colors.Yellow)
-                                            .Center()
-                                            .Size(50)
-                                        ,
-
-                                        new Grid() {
-
-                                            RowDefinitions = Rows.Define(
-                                                (ArticleDetailsRow.Header, Auto),
-                                                (ArticleDetailsRow.Center, Star),
-                                                (ArticleDetailsRow.Footer, Auto)
-                                            ),
-
-                                            Children = {
-
-                                                new Label()
-                                                    .Row(ArticleDetailsRow.Header)
-                                                    .Bind(Label.TextProperty,
-                                                        binding1: new Binding(nameof(Position.Ordinal)),
-                                                        binding2: new Binding(nameof(Position.Article)),
-                                                        convert: ((int o, Article a) values) => {
-                                                            if (values.o == 0 || values.a == null) {
-                                                                return string.Empty;
-                                                            }
-                                                            return string.Join(" | ", new string[] { values.o.ToString(), values.a.OrderNumber });
-                                                         }
-                                                    )
-                                                    .Font(bold : false, size : 10)
-                                                ,
-
-                                                new Label()
-                                                    .Bind(Label.TextProperty, 
-                                                        static(Position p) => p.Article.Name,
-                                                        convert: (string? text) => text?.ToUpperInvariant() ?? "")
-                                                    .Font(bold: true, size: 16)
-                                                    .Row(ArticleDetailsRow.Center)
-                                                ,
-
-                                                new Grid() {
-                                                    ColumnDefinitions = Columns.Define(Star, Star),
-                                                    Children = {
-                                                        new Label()
-                                                            .Column(0)
-                                                            .Bind(Label.TextProperty, static(Position p) => p.Article.PackagintUnits)
-                                                            .Font(bold : false, size : 10)
-                                                            .Start()
-                                                        ,
-                                                        new Label()
-                                                            .Column(1)
-                                                            .Bind(Label.TextProperty, static(Position p) => p.Article.PriceEuros)
-                                                            .Font(bold : false, size : 10)
-                                                            .End()
-                                                    }
-                                                }.Row(ArticleDetailsRow.Footer)
-
-                                            }
-
-                                        }.Column(CellColumn.ArticleDetails),
-
-                                        new Button()
-                                            .IsVisible(true)
-                                            .Column(CellColumn.Amount)
-                                            .Bind(Button.TextProperty, nameof(Position.Amount))
-                                            .BackgroundColor(Colors.LightGray)
-                                            .Center()
-                                        ,
-                                        
-                                    }
-                                }.Padding(0, 10)
-                            )
-                        )
-                        
+                        .ItemTemplate(new ListPositionDataTemplate())
+                        //.ItemTemplate(new DataTemplate(typeof(ListPositionCellView)))
 
                 }
 
